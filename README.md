@@ -3,7 +3,8 @@
 A to-do list app built with **React**, **Vite**, and **TypeScript**. Tasks are stored in **Render Postgres** when `DATABASE_URL` is set (recommended for Render), with a local JSON-file fallback (`server/data.json`) when it is not.
 
 ## Features
-- Add, complete, and delete tasks
+- Email/password authentication (create account, sign in, sign out) with user-specific task isolation
+- Add, complete, and delete tasks (mapped to the signed-in user)
 - Optional deadlines (date & time) with relative due labels (e.g., overdue, due tomorrow)
 - Task progress (0–100%) with a progress bar/slider
 - Timestamped milestone/progress updates per task (with progress checkpoints)
@@ -43,14 +44,15 @@ npm run preview
 This repo includes `render.yaml` to provision a web service and a Postgres database.
 
 1. Push this repo to GitHub.
-2. In [Render](https://render.com), create a new **Blueprint** and select this repo. The blueprint creates/links `todo-db` and sets `DATABASE_URL` for the web service.
-3. If you deploy manually (without the blueprint), create a **Postgres** instance and a **Web Service**, then add an environment variable:
+2. In [Render](https://render.com), create a new **Blueprint** and select this repo. The blueprint creates/links `todo-db`, sets `DATABASE_URL`, and generates `JWT_SECRET` for the web service.
+3. If you deploy manually (without the blueprint), create a **Postgres** instance and a **Web Service**, then add environment variables:
    - `DATABASE_URL` = your Render Postgres connection string
+   - `JWT_SECRET` = a long random secret (required for authentication cookies/tokens)
 4. Web Service settings (manual):
    - **Build Command:** `npm install && npm run build`
    - **Start Command:** `npm start`
 
-The server creates the `tasks` table automatically on startup.
+The server creates the required tables automatically on startup.
 
 ## Notes
 - **Data preservation:** with `DATABASE_URL` configured, tasks are stored in Postgres and preserved across deploys/restarts.

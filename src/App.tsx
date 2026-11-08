@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
 
+type User = { id: string; name: string; email: string; createdAt?: number }
+
 type TaskUpdate = {
   id: string
   taskId: string
@@ -24,6 +26,7 @@ type Filter = 'all' | 'pending' | 'overdue' | 'completed'
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
     ...init,
   })
@@ -35,7 +38,9 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* ignore */
     }
-    throw new Error(message)
+    const err = new Error(message) as Error & { status?: number }
+    err.status = res.status
+    throw err
   }
   if (res.status === 204) return undefined as T
   return (await res.json()) as T
@@ -94,7 +99,85 @@ function normalizeTask(t: Partial<Task>): Task {
   }
 }
 
-function App() {
+function AuthScreen({ onAuth }: { onAuth: (user: User) => void }) {
+  const [mode, setMode] = useState<'signin' | 'create'>('signin')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setSubmitting(true)
+    try {
+      if (mode === 'create') {
+        const data = await api<{ user: User }>('/api/auth/register', {
+          method: 'POST',
+          body: JSON.stringify({ name, email, password }),
+        })
+        onAuth(data.user)
+      } else {
+        const data = await api<{ user: User }>('/api/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, password }),
+        })
+        onAuth(data.user)
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Authentication failed')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <main className="app auth-app">
+      <h1>To-Do List</h1>
+      <p className="subtitle">Sign in to access your personal tasks.</p>
+
+      <div className="auth-tabs" role="tablist" aria-label="Authentication">
+        <button type="button" className={mode === 'signin' ? 'filter-btn active' : 'filter-btn'} onClick={() => { setMode('signin'); setError(null) }}>
+          Sign In
+        </button>
+        <button type="button" className={mode === 'create' ? 'filter-btn active' : 'filter-btn'} onClick={() => { setMode('create'); setError(null) }}>
+          Create Account
+        </button>
+      </div>
+
+      <form className="auth-form" onSubmit={submit}>
+        {mode === 'create' && (
+          <label className="field">
+            <span>Name</span>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required />
+          </label>
+        )}
+        <label className="field">
+          <span>Email</span>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
+        </label>
+        <label className="field">
+          <span>Password</span>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete={mode === 'create' ? 'new-password' : 'current-password'}
+            required
+            minLength={mode === 'create' ? 6 : undefined}
+          />
+        </label>
+        {error && <p className="error" role="alert">{error}</p>}
+        <button className="btn-primary" type="submit" disabled={submitting}>
+          {submitting ? 'Please wait…' : mode === 'create' ? 'Create Account' : 'Sign In'}
+        </button>
+      </form>
+    </main>
+  )
+}
+
+function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [input, setInput] = useState('')
   const [dueInput, setDueInput] = useState('')
@@ -118,7 +201,10 @@ function App() {
         if (!cancelled) setTasks(Array.isArray(data) ? data.map(normalizeTask) : [])
       })
       .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load tasks')
+        if (cancelled) return
+        const status = (e as { status?: number })?.status
+        if (status === 401) onLogout()
+        else setError(e instanceof Error ? e.message : 'Failed to load tasks')
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -126,7 +212,7 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [onLogout])
 
   const visible = useMemo(() => {
     const now = Date.now()
@@ -146,11 +232,7 @@ function App() {
     try {
       const task = await api<Task>('/api/tasks', {
         method: 'POST',
-        body: JSON.stringify({
-          text,
-          dueAt: fromDateTimeLocal(dueInput),
-          progress: progressInput,
-        }),
+        body: JSON.stringify({ text, dueAt: fromDateTimeLocal(dueInput), progress: progressInput }),
       })
       setTasks((prev) => [normalizeTask(task), ...prev])
       setInput('')
@@ -164,10 +246,7 @@ function App() {
   async function patchTask(id: string, body: Record<string, unknown>) {
     setError(null)
     try {
-      const updated = await api<Task>(`/api/tasks/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(body),
-      })
+      const updated = await api<Task>(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
       const task = normalizeTask(updated)
       setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
       return task
@@ -175,14 +254,6 @@ function App() {
       setError(e instanceof Error ? e.message : 'Failed to update task')
       return null
     }
-  }
-
-  async function onToggle(task: Task) {
-    await patchTask(task.id, { done: !task.done })
-  }
-
-  async function onProgressChange(task: Task, progress: number) {
-    await patchTask(task.id, { progress })
   }
 
   async function onDelete(id: string) {
@@ -213,10 +284,7 @@ function App() {
     try {
       await api<TaskUpdate>(`/api/tasks/${task.id}/updates`, {
         method: 'POST',
-        body: JSON.stringify({
-          text,
-          progressAt: updateProgress[task.id] ?? task.progress,
-        }),
+        body: JSON.stringify({ text, progressAt: updateProgress[task.id] ?? task.progress }),
       })
       setUpdateText((prev) => ({ ...prev, [task.id]: '' }))
       await refresh()
@@ -225,10 +293,24 @@ function App() {
     }
   }
 
+  async function logout() {
+    try {
+      await api<void>('/api/auth/logout', { method: 'POST' })
+    } catch {
+      /* ignore */
+    }
+    onLogout()
+  }
+
   return (
     <main className="app">
-      <h1>To-Do List</h1>
-      <p className="subtitle">React + Vite + TypeScript, with tasks saved to the backend (Postgres when configured).</p>
+      <div className="workspace-head">
+        <div>
+          <h1>To-Do List</h1>
+          <p className="subtitle">Personal workspace for <strong>{user.name}</strong> ({user.email}).</p>
+        </div>
+        <button type="button" className="small-btn" onClick={logout}>Sign out</button>
+      </div>
 
       <form className="add-form" onSubmit={onAdd}>
         <input
@@ -246,13 +328,7 @@ function App() {
           </label>
           <label className="field">
             <span>Progress: {progressInput}%</span>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={progressInput}
-              onChange={(e) => setProgressInput(Number(e.target.value))}
-            />
+            <input type="range" min={0} max={100} value={progressInput} onChange={(e) => setProgressInput(Number(e.target.value))} />
           </label>
         </div>
         <button className="btn-primary" type="submit">Add task</button>
@@ -263,12 +339,7 @@ function App() {
       <div className="toolbar">
         <div className="filters" role="tablist" aria-label="Filters">
           {(['all', 'pending', 'overdue', 'completed'] as const).map((f) => (
-            <button
-              key={f}
-              type="button"
-              className={filter === f ? 'filter-btn active' : 'filter-btn'}
-              onClick={() => setFilter(f)}
-            >
+            <button key={f} type="button" className={filter === f ? 'filter-btn active' : 'filter-btn'} onClick={() => setFilter(f)}>
               {f[0].toUpperCase() + f.slice(1)}
             </button>
           ))}
@@ -288,42 +359,25 @@ function App() {
             return (
               <li key={task.id} className="item">
                 <div className="item-main">
-                  <input
-                    type="checkbox"
-                    checked={task.done}
-                    onChange={() => onToggle(task)}
-                    aria-label="Mark task complete"
-                  />
+                  <input type="checkbox" checked={task.done} onChange={() => patchTask(task.id, { done: !task.done })} aria-label="Mark task complete" />
                   <div className="item-body">
                     <div className="item-title-row">
                       <span className={task.done ? 'task-text done' : 'task-text'}>{task.text}</span>
                       <span className="progress-pill">{task.progress}%</span>
                     </div>
-                    <div className="progress-bar" aria-hidden="true">
-                      <div className="progress-fill" style={{ width: `${task.progress}%` }} />
-                    </div>
+                    <div className="progress-bar" aria-hidden="true"><div className="progress-fill" style={{ width: `${task.progress}%` }} /></div>
                     <div className="item-meta">
                       {due && <span className={`due due-${due.tone}`}>{due.text}</span>}
-                      <button
-                        type="button"
-                        className="small-btn"
-                        onClick={() => {
-                          setOpenTaskId(open ? null : task.id)
-                          setUpdateProgress((prev) => ({ ...prev, [task.id]: prev[task.id] ?? task.progress }))
-                        }}
-                      >
+                      <button type="button" className="small-btn" onClick={() => {
+                        setOpenTaskId(open ? null : task.id)
+                        setUpdateProgress((prev) => ({ ...prev, [task.id]: prev[task.id] ?? task.progress }))
+                      }}>
                         {open ? 'Hide updates' : `Updates (${task.updates?.length || 0})`}
                       </button>
                     </div>
                     <label className="inline-progress">
                       <span>Adjust progress</span>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        value={task.progress}
-                        onChange={(e) => onProgressChange(task, Number(e.target.value))}
-                      />
+                      <input type="range" min={0} max={100} value={task.progress} onChange={(e) => patchTask(task.id, { progress: Number(e.target.value) })} />
                     </label>
                   </div>
                   <button type="button" className="delete-btn" onClick={() => onDelete(task.id)}>Delete</button>
@@ -331,35 +385,17 @@ function App() {
 
                 {open && (
                   <div className="updates">
-                    <form
-                      className="update-form"
-                      onSubmit={(e) => {
-                        e.preventDefault()
-                        onAddUpdate(task)
-                      }}
-                    >
+                    <form className="update-form" onSubmit={(e) => { e.preventDefault(); onAddUpdate(task) }}>
                       <label className="field">
                         <span>Progress update</span>
-                        <input
-                          type="text"
-                          value={updateText[task.id] || ''}
-                          onChange={(e) => setUpdateText((prev) => ({ ...prev, [task.id]: e.target.value }))}
-                          placeholder="e.g., 35% completed — woke up at 1:50 AM"
-                        />
+                        <input type="text" value={updateText[task.id] || ''} onChange={(e) => setUpdateText((prev) => ({ ...prev, [task.id]: e.target.value }))} placeholder="e.g., 35% completed — woke up at 1:50 AM" />
                       </label>
                       <label className="field">
                         <span>Checkpoint: {updateProgress[task.id] ?? task.progress}%</span>
-                        <input
-                          type="range"
-                          min={0}
-                          max={100}
-                          value={updateProgress[task.id] ?? task.progress}
-                          onChange={(e) => setUpdateProgress((prev) => ({ ...prev, [task.id]: Number(e.target.value) }))}
-                        />
+                        <input type="range" min={0} max={100} value={updateProgress[task.id] ?? task.progress} onChange={(e) => setUpdateProgress((prev) => ({ ...prev, [task.id]: Number(e.target.value) }))} />
                       </label>
                       <button type="submit" className="btn-primary">Post update</button>
                     </form>
-
                     <div className="updates-list">
                       {(task.updates || []).length === 0 ? (
                         <p className="empty small">No milestone updates yet.</p>
@@ -367,10 +403,7 @@ function App() {
                         <ul>
                           {task.updates.map((u) => (
                             <li key={u.id} className="update-item">
-                              <div className="update-head">
-                                <strong>{u.progressAt}%</strong>
-                                <span>{formatDateTime(u.createdAt)}</span>
-                              </div>
+                              <div className="update-head"><strong>{u.progressAt}%</strong><span>{formatDateTime(u.createdAt)}</span></div>
                               <div>{u.text}</div>
                             </li>
                           ))}
@@ -390,6 +423,24 @@ function App() {
       </div>
     </main>
   )
+}
+
+function App() {
+  const [user, setUser] = useState<User | null>(null)
+  const [checking, setChecking] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    api<{ user: User }>('/api/auth/me')
+      .then((data) => { if (!cancelled) setUser(data.user) })
+      .catch(() => { if (!cancelled) setUser(null) })
+      .finally(() => { if (!cancelled) setChecking(false) })
+    return () => { cancelled = true }
+  }, [])
+
+  if (checking) return <main className="app"><p className="empty">Loading…</p></main>
+  if (!user) return <AuthScreen onAuth={setUser} />
+  return <Workspace user={user} onLogout={() => setUser(null)} />
 }
 
 export default App
