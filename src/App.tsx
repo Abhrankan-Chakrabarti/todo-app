@@ -20,7 +20,7 @@ type Task = {
   updates: TaskUpdate[]
 }
 
-type Filter = 'all' | 'active' | 'completed'
+type Filter = 'all' | 'pending' | 'overdue' | 'completed'
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -129,7 +129,9 @@ function App() {
   }, [])
 
   const visible = useMemo(() => {
-    if (filter === 'active') return tasks.filter((t) => !t.done)
+    const now = Date.now()
+    if (filter === 'pending') return tasks.filter((t) => !t.done && !(t.dueAt != null && t.dueAt < now))
+    if (filter === 'overdue') return tasks.filter((t) => !t.done && t.dueAt != null && t.dueAt < now)
     if (filter === 'completed') return tasks.filter((t) => t.done)
     return tasks
   }, [tasks, filter])
@@ -260,7 +262,7 @@ function App() {
 
       <div className="toolbar">
         <div className="filters" role="tablist" aria-label="Filters">
-          {(['all', 'active', 'completed'] as const).map((f) => (
+          {(['all', 'pending', 'overdue', 'completed'] as const).map((f) => (
             <button
               key={f}
               type="button"
