@@ -8,6 +8,7 @@
     "server": "node server/index.js",
     "dev:all": "concurrently \"npm run server\" \"npm run dev\"",
     "build": "tsc -b && vite build",
+    "start": "node server/index.js",
     "lint": "oxlint",
     "preview": "vite preview"
   },
