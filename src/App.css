@@ -1,5 +1,5 @@
 #root {
-  max-width: 720px;
+  max-width: 860px;
   margin: 0 auto;
   padding: 32px 16px;
 }
@@ -24,25 +24,49 @@ h1 {
   font-size: 0.95rem;
 }
 
-.row {
-  display: flex;
-  gap: 10px;
+.add-form {
+  display: grid;
+  gap: 12px;
 }
 
-.row input[type='text'] {
-  flex: 1;
+.task-input,
+.add-form input[type='text'],
+.add-form input[type='datetime-local'],
+.update-form input[type='text'] {
+  width: 100%;
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 10px;
   font-size: 1rem;
   background: #fff;
   color: var(--text);
+  font-family: inherit;
 }
 
-.row input[type='text']:focus {
+.task-input:focus,
+.add-form input:focus,
+.update-form input:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.add-grid,
+.update-form {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+input[type='range'] {
+  width: 100%;
 }
 
 button {
@@ -106,23 +130,98 @@ button {
 }
 
 .item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 4px;
+  padding: 14px 4px;
   border-bottom: 1px solid var(--border);
 }
 .item:last-child {
   border-bottom: none;
 }
 
+.item-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+}
+
 .task-text {
   flex: 1;
   word-break: break-word;
+  font-weight: 500;
 }
 .task-text.done {
   text-decoration: line-through;
   color: var(--done);
+}
+
+.progress-pill {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.progress-bar {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  border-radius: 999px;
+}
+
+.item-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.due {
+  font-size: 0.88rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: var(--text);
+}
+.due-soon { background: #fef3c7; color: #92400e; }
+.due-overdue { background: #fee2e2; color: #991b1b; }
+.due-done { background: #ecfdf5; color: #065f46; }
+
+.small-btn {
+  background: transparent;
+  color: var(--accent);
+  padding: 4px 8px;
+  font-size: 0.88rem;
+}
+.small-btn:hover { background: #eff6ff; }
+
+.inline-progress {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.88rem;
 }
 
 .delete-btn {
@@ -135,12 +234,51 @@ button {
   background: #fef2f2;
 }
 
+.updates {
+  margin: 12px 0 0 30px;
+  padding: 14px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.update-form .btn-primary {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.updates-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  gap: 10px;
+}
+
+.update-item {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.update-head {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-bottom: 4px;
+}
+.update-head strong { color: #1d4ed8; }
+
 .empty {
   color: var(--muted);
   text-align: center;
   padding: 24px 8px;
   margin: 0;
 }
+.empty.small { padding: 8px 0; text-align: left; font-size: 0.92rem; }
 
 .footer {
   margin-top: 14px;
@@ -157,11 +295,8 @@ button {
   color: var(--danger);
 }
 
-@media (max-width: 520px) {
-  .row {
-    flex-direction: column;
-  }
-  .toolbar {
-    align-items: flex-start;
-  }
+@media (max-width: 640px) {
+  .item-main { flex-wrap: wrap; }
+  .updates { margin-left: 0; }
+  .inline-progress { grid-template-columns: 1fr; }
 }

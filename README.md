@@ -4,6 +4,9 @@ A to-do list app built with **React**, **Vite**, and **TypeScript**. Tasks are s
 
 ## Features
 - Add, complete, and delete tasks
+- Optional deadlines (date & time) with relative due labels (e.g., overdue, due tomorrow)
+- Task progress (0–100%) with a progress bar/slider
+- Timestamped milestone/progress updates per task (with progress checkpoints)
 - Filter by All / Active / Completed
 - Clear completed tasks
 - Durable storage on Render via Postgres (`DATABASE_URL`)
