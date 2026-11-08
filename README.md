@@ -49,7 +49,7 @@ This repo includes `render.yaml` to provision a web service and a Postgres datab
    - `DATABASE_URL` = your Render Postgres connection string
    - `JWT_SECRET` = a long random secret (required for authentication cookies/tokens)
 4. Web Service settings (manual):
-   - **Build Command:** `npm install && npm run build`
+   - **Build Command:** `npm install --include=dev && npm run build`
    - **Start Command:** `npm start`
 
 The server creates the required tables automatically on startup.
