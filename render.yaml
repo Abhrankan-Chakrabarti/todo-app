@@ -9,7 +9,7 @@ services:
     plan: free
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
-    healthCheckPath: /api/tasks
+    healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
         fromDatabase:

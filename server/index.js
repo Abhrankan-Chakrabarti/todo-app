@@ -34,7 +34,13 @@ function getPool() {
       process.env.DATABASE_SSL === 'false' || DATABASE_URL.includes('localhost')
         ? undefined
         : { rejectUnauthorized: false };
-    pool = new Pool({ connectionString: DATABASE_URL, ssl });
+    pool = new Pool({
+      connectionString: DATABASE_URL,
+      ssl,
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
+      max: 10,
+    });
   }
   return pool;
 }
@@ -42,6 +48,7 @@ function getPool() {
 async function initDb() {
   const db = getPool();
   if (!db) return;
+  await db.query('SELECT 1');
   await db.query(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -408,6 +415,10 @@ async function addTaskUpdate(userId, taskId, { text, progressAt }) {
   await writeStoreFile(store);
   return update;
 }
+
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true });
+});
 
 // Auth
 app.post('/api/auth/register', async (req, res) => {
