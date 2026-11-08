@@ -115,7 +115,7 @@ function App() {
   return (
     <main className="app">
       <h1>To-Do List</h1>
-      <p className="subtitle">React + Vite + TypeScript, with tasks saved to a local JSON file via the backend.</p>
+      <p className="subtitle">React + Vite + TypeScript, with tasks saved to the backend (Postgres when configured).</p>
 
       <form className="row" onSubmit={onAdd}>
         <input
