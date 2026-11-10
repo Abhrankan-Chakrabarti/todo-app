@@ -3,13 +3,15 @@
 A to-do list app built with **React**, **Vite**, and **TypeScript**. Tasks are stored in **Render Postgres** when `DATABASE_URL` is set (recommended for Render), with a local JSON-file fallback (`server/data.json`) when it is not.
 
 ## Features
-- Email/password authentication (create account, sign in, sign out) with user-specific task isolation
-- Add, complete, and delete tasks (mapped to the signed-in user)
+- Email/password authentication (create account, sign in, sign out)
+- **My Tasks**: personal tasks scoped to your account (private)
+- **Teams**: create teams, add members by registered email, and collaborate in shared team workspaces
+- **Team Tasks**: visible to all team members, with assignment to a team member, deadlines, progress, and milestone updates
+- Sidebar navigation for **My Tasks** and team workspaces
 - Optional deadlines (date & time) with relative due labels (e.g., overdue, due tomorrow)
 - Task progress (0–100%) with a progress bar/slider
 - Timestamped milestone/progress updates per task (with progress checkpoints)
 - Filter by All / Pending / Overdue / Completed (with full details visible for completed tasks)
-- Clear completed tasks
 - Durable storage on Render via Postgres (`DATABASE_URL`)
 
 ## Requirements
@@ -52,7 +54,7 @@ This repo includes `render.yaml` to provision a web service and a Postgres datab
    - **Build Command:** `npm install --include=dev && npm run build`
    - **Start Command:** `npm start`
 
-The server creates the required tables automatically on startup.
+The server creates/migrates the required tables automatically on startup (`users`, `teams`, `team_members`, `tasks`, `task_updates`, including team/assignment columns).
 
 ## Notes
 - **Data preservation:** with `DATABASE_URL` configured, tasks are stored in Postgres and preserved across deploys/restarts.
